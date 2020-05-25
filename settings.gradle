@@ -1,0 +1,2 @@
+rootProject.name='NdkTestApplication'
+include ':app'
