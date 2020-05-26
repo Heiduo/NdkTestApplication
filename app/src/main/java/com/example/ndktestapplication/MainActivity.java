@@ -32,11 +32,11 @@ public class MainActivity extends AppCompatActivity {
         Log.e(TAG,NDKHelper.parseUser(user) + ":" + user.getName());
 
         NDKHelper.createBean();
-        downloadThread();
+        downloadThread(this);
     }
 
     //在JNI中创建JNI线程，并实现线程中调用JAVA方法
-    public static native void downloadThread();
+    public static native void downloadThread(MainActivity activity);
 
     public void updateUI(){
         if (Looper.myLooper() == Looper.getMainLooper()){

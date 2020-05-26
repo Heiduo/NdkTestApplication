@@ -139,41 +139,17 @@ void *threadTask(void *args) {
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_example_ndktestapplication_NDKHelper_downloadThread(JNIEnv *env, jclass clazz) {
-    pthread_t pid;
-    //变为全局变量
-    jobject globalClazz = env->NewGlobalRef(clazz);
-
-    //启动线程
-    pthread_create(&pid, NULL, threadTask, globalClazz);
-
-}
-
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_example_ndktestapplication_MainActivity_downloadThread(JNIEnv *env, jclass clazz) {
+Java_com_example_ndktestapplication_MainActivity_downloadThread(JNIEnv *env, jclass clazz,jobject activity) {
     // TODO: implement downloadThread()
     pthread_t pid;
 
     //变为全局变量
-    jobject globalClazz = env->NewGlobalRef(clazz);
+    jobject globalClazz = env->NewGlobalRef(activity);
 
     //启动线程
     pthread_create(&pid, NULL, threadTask, globalClazz);
 }
 
-extern "C"
-JNIEXPORT void JNICALL
-Java_com_example_ndktestapplication_NDKHelper_downloadThread1(JNIEnv *env, jclass clazz,
-                                                              jobject activity) {
-    jclass cla = env->GetObjectClass(activity);
-    pthread_t pid;
-    //变为全局变量
-    jobject globalClazz = env->NewGlobalRef(cla);
-    jmethodID updateUI = env->GetMethodID(cla,"updateUI", "()V");
 
-    //启动线程
-    pthread_create(&pid, NULL, threadTask, cla);
-}
 
 
