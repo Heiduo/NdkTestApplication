@@ -18,7 +18,7 @@ Java_com_example_ndktestapplication_NDKHelper_getNDKPrint(JNIEnv *env, jclass cl
 
 extern "C"
 JNIEXPORT jstring JNICALL
-Java_com_example_ndktestapplication_NDKHelper_sendIntArrayToJNI(JNIEnv *env, jobject thiz,
+Java_com_example_ndktestapplication_NDKHelper_sendIntArrayToJNI(JNIEnv *env, jclass thiz,
                                                                 jintArray int_array) {
     jint *javaArray = env->GetIntArrayElements(int_array, NULL);
 
@@ -149,6 +149,8 @@ Java_com_example_ndktestapplication_MainActivity_downloadThread(JNIEnv *env, jcl
     //启动线程
     pthread_create(&pid, NULL, threadTask, globalClazz);
 }
+
+
 
 
 

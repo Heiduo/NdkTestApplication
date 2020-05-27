@@ -1,5 +1,19 @@
 #include <stdio.h> 
 #include <stdlib.h>
+#include <jni.h>
+#include <android/log.h>
+//#include <direct.h>
+#include <unistd.h>
+#include <string>
+//#include <asset_manager.h>
+//#include <asset_manager_jni.h>
+#include <android/asset_manager_jni.h>
+#include <android/asset_manager.h>
+
+
+//定义打印宏
+#define  LOGE(...) __android_log_print(ANDROID_LOG_ERROR,"JNI",__VA_ARGS__);
+
 void convolution(double data[], double filter[], int datalen, int filterlen,double dataf[]) 
 {
 	int i,j;
@@ -172,7 +186,7 @@ int isppgsignal(int data[], int initial, int len,int step,int win, double weight
 	{
 		return 0;
 	}
-	double coef[coeflen]={0};
+	double coef[coeflen];//={0}
 	int count = 0;
 	coef[coeflen-1] = 10000000;
 	
@@ -326,6 +340,208 @@ int main()
 		system("pause");
 	 }
   	return 0;
-} 
+}
+
+double *highpass;
+double *lowpass;
+int highlen;
+int lowlen;
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_com_example_ndktestapplication_NDKHelper_initAlgorithm(JNIEnv *env, jclass clazz,
+        jobject manager) {
+    double buf[MAXDATALEN];  /*缓冲区*/
+    FILE *fp;            /*文件指针*/
+    int count=0;             /*行字符个数*/
+    double temp;
+    int i = 0;
+
+    AAssetManager* mManager = AAssetManager_fromJava(env, manager);
+
+    //highpass
+    char* filePathName="highpass.txt";//1.bin为asserts目录中的
+    AAsset* pAsset = AAssetManager_open(mManager, filePathName, AASSET_MODE_UNKNOWN);
+    size_t dataBufferSize = AAsset_getLength(pAsset);
+    char* pData = new char[dataBufferSize];//存放读取的文件数据
+    int numBytesRead = AAsset_read(pAsset, pData, dataBufferSize);
+    if (numBytesRead <= 0)
+    {
+        LOGE("read highpass failed");
+        delete[] pData;
+        pData = NULL;
+        return static_cast<jboolean>(false);
+        exit(0);
+    }
+    else{
+        LOGE("highpass: %d", numBytesRead);
+        //分割
+        char* mStr = strtok(pData,"\t");
+        i = 0;
+        while (mStr != NULL)
+        {
+            //转换
+            buf[i] = strtod(mStr,NULL);
+//            LOGE("high: %lf",buf[i]);
+            i++;
+
+            mStr = strtok(NULL, "\t");
+        }
+        highlen = i;
+        LOGE("highpass len: %d\n",highlen);
+        highpass = new double[highlen];
+        for(int j = 0; j<i;j++){
+            highpass[j] = buf[j];
+        }
+
+//        AAsset_close(pAsset);
+//        free(pData);
+    }
+
+    //lowpass
+    filePathName="lowpass.txt";//1.bin为asserts目录中的
+    pAsset = AAssetManager_open(mManager, filePathName, AASSET_MODE_UNKNOWN);
+    dataBufferSize = AAsset_getLength(pAsset);
+    pData = new char[dataBufferSize];//存放读取的文件数据
+    numBytesRead = AAsset_read(pAsset, pData, dataBufferSize);
+    if (numBytesRead <= 0)
+    {
+        LOGE("read lowpass failed");
+        delete[] pData;
+        pData = NULL;
+        return static_cast<jboolean>(false);
+        exit(0);
+    }
+    else{
+        LOGE("lowpass: %d", numBytesRead);
+        //分割
+        char* mStr = strtok(pData,"\t");
+        i = 0;
+        while (mStr != NULL)
+        {
+            //转换
+            buf[i] = strtod(mStr,NULL);
+//            LOGE("low: %lf",buf[i]);
+            i++;
+
+            mStr = strtok(NULL, "\t");
+        }
+        lowlen = i;
+        LOGE("lowpass len: %d\n",lowlen);
+        lowpass = new double[lowlen];
+        for(int j = 0; j<i;j++){
+            lowpass[j] = buf[j];
+        }
+
+        AAsset_close(pAsset);
+        free(pData);
+    }
+
+    return static_cast<jboolean>(true);
+
+    /*for(int j = 0; j<lowlen;j++){
+        LOGE("low data: %.16lf",lowpass[j]);
+    }*/
+}
+
+#define ROW 50
+#define LINE 8
+
+extern "C"
+JNIEXPORT jobjectArray JNICALL
+Java_com_example_ndktestapplication_NDKHelper_applyAlgorithm(JNIEnv *env, jclass clazz,
+                                                             jdoubleArray data) {
+    if(highpass!=NULL && lowpass!=NULL){
+        double *dataJni = env->GetDoubleArrayElements(data,NULL);
+        int dataLen = env->GetArrayLength(data);
+        double **Fm =(double **)malloc(ROW*sizeof(double *));
+        for (int i=0;i<ROW;i++)
+            Fm[i]=(double *)malloc(LINE*sizeof(double));
+
+		LOGE("start")
+		ppg_fearure_extractor(dataJni,highpass,lowpass,dataLen,highlen,lowlen,Fm);
+		LOGE("done")
+		jobjectArray fm;
+
+		jclass doubleArr = env->FindClass("[D");
+		fm = env->NewObjectArray(ROW, doubleArr, nullptr);
+
+		for (int i = 0; i < ROW; ++i) {
+			jdoubleArray colArr = env->NewDoubleArray(LINE);
+			env->SetDoubleArrayRegion(colArr,0,LINE,Fm[i]);
+			env->SetObjectArrayElement(fm, i, colArr);
+			env->DeleteLocalRef(colArr);
+		}
+
+		return fm;
+    } else{
+        LOGE("滤波器为NULL")
+		return NULL;
+    }
+}
+
+
+
+/*    char   buffer[MAXDATALEN];
+    getcwd(buffer, MAXDATALEN);
+//    printf( );
+    LOGE("The   current   directory   is:   %s ",   buffer)*/
+
+/*if((fp = fopen("highpass.txt","r")) == NULL)
+{
+//        perror("fail to read");
+    LOGE("highpass fail to read");
+    exit (1) ;
+}
+for(i=0;i<MAXDATALEN;i++)
+{
+    if(fscanf(fp,"%lf\t",&temp)==-1)
+    {
+        break;
+    }
+    buf[i] = temp;
+}
+//    printf("highpass len: %d\n",i);
+
+fclose(fp);
+//
+//    int highlen =i;
+highlen =i;
+LOGE("highpass len: %d\n",highlen);
+
+//    double highpass[i];
+highpass = new double[highlen];
+for(int j = 0; j<i;j++)
+{
+    highpass[j] = buf[j];
+}
+
+if((fp = fopen("lowpass.txt","r")) == NULL)
+{
+//        perror("fail to read");
+    LOGE("lowpass fail to read");
+
+    exit (1) ;
+}
+for(i=0;i<MAXDATALEN;i++)
+{
+    if(fscanf(fp,"%lf\t",&temp)==-1)
+    {
+        break;
+    }
+    buf[i] = temp;
+}
+//    printf("lowpass len: %d\n",i);
+
+fclose(fp);
+//
+lowlen = i;
+LOGE("lowpass len: %d\n",lowlen);
+//    double lowpass[i];
+lowpass = new double[lowlen];
+for(int j = 0; j<i;j++)
+{
+    lowpass[j] = buf[j];
+}*/
 
 

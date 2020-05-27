@@ -1,6 +1,7 @@
 package com.example.ndktestapplication;
 
 import android.app.Activity;
+import android.content.res.AssetManager;
 import android.os.Looper;
 
 /**
@@ -25,5 +26,11 @@ public class NDKHelper {
 
     //创建JAVA实体类
     public static native void createBean();
+
+    //初始化数据
+    public static native boolean initAlgorithm(AssetManager manager);
+
+    //前置算法调用
+    public static native double[][] applyAlgorithm(double[] data);
 
 }
